@@ -880,8 +880,24 @@ int axforward_handler( netsnmp_pdu           *pdu,
                        netsnmp_transport     *transport,
                        netsnmp_trapd_handler *handler)
 {
-    send_v2trap( pdu->variables );
-    return NETSNMPTRAPD_HANDLER_OK;
+    netsnmp_pdu    *v2_pdu = NULL;
+    if (pdu->command == SNMP_MSG_TRAP)
+        v2_pdu = convert_v1pdu_to_v2(pdu);
+    else
+        v2_pdu = snmp_clone_pdu(pdu);
+
+    if (netsnmp_ds_get_boolean(NETSNMP_DS_LIBRARY_ID,
+                               NETSNMP_DS_LIB_ADD_FORWARDER_INFO) &&
+        !add_forwarder_info(pdu, v2_pdu)) {
+        return NETSNMPTRAPD_HANDLER_FAIL;
+    }
+
+    send_v2trap( v2_pdu->variables );
+
+    snmp_free_pdu(v2_pdu);
+    
+    return NETSNMPTRAPD_HANDLER_OK;	
+
 }
 
 static int add_forwarder_info(netsnmp_pdu *pdu, netsnmp_pdu *pdu2)
